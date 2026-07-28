@@ -1,11 +1,9 @@
 # MinecraftAndroidServer
 
-## Checked runtime sources
+## Verified source audit
 
-- Ubuntu Jammy ARM64 rootfs: official Ubuntu cloud-image endpoint, with SHA-256 pinned in `runtime-manifest.json`.
-- Playit Agent `v1.0.10` ARM64 Linux: official GitHub release asset, with GitHub release digest pinned in `runtime-manifest.json`.
-- PRoot: official Ubuntu ARM64 `.deb` exists and has a published SHA-256, but it is not a standalone binary. The current verified pipeline does not silently treat a `.deb` as an executable.
-- Box64: official source, Debian ARM64 package, and official GitHub bundle releases exist. The checked official GitHub release does not publish a standalone ARM64 executable, and the checked Debian endpoint did not expose a usable direct SHA-256 asset for safe unattended installation. It remains blocked rather than guessed.
-- Official BDS: Mojang publishes the Linux server for Ubuntu 22.04+ and requires accepting Mojang terms. Android ARM64 still needs Box64 and a compatible Linux userspace.
+Confirmed and pinned: Ubuntu 22.04 ARM64 rootfs from the official Ubuntu cloud-image endpoint, and Playit Agent v1.0.10 `linux-aarch64` from the official Playit GitHub release. Both have direct HTTPS URLs and SHA-256 digests in `runtime-manifest.json`.
 
-The project downloads only artifacts with a pinned SHA-256. Missing or unverified runtime components deliberately stop startup instead of producing a fake running state.
+PRoot is confirmed as an official Ubuntu ARM64 `.deb` with SHA-256, but not as a current standalone binary. Box64 is confirmed as official source plus Debian ARM64 package and GitHub bundle releases. The GitHub release does not expose a standalone ARM64 executable; the Debian endpoint did not expose a verified direct checksum in the checked response. They are therefore not silently installed as executable files.
+
+The Ubuntu ARM64 rootfs is the **host** userspace. It is not the x86_64 guest library set required by BDS. The launch command therefore requires a separate verified PRoot and Box64 plus x86_64 glibc libraries. The code keeps this distinction explicit and refuses to run when those prerequisites are missing.
