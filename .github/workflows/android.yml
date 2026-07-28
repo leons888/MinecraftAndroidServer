@@ -1,9 +1,11 @@
 name: Android build
+
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -14,6 +16,9 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.2'
       - run: yes | sdkmanager --licenses >/dev/null || true
       - run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
-      - run: gradle assembleDebug --no-daemon
+      - run: gradle assembleDebug --no-daemon --stacktrace
