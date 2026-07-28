@@ -1,84 +1,70 @@
 # MinecraftAndroidServer
 
 Minecraft Bedrock Dedicated Server on stock Android. No Termux, no root, no
-PRoot, no Linux rootfs.
+PRoot, no Linux rootfs. The first target device is Poco X4 GT, Android 14.
 
-## How the server actually runs
+## ACS Lite / AIDE compatibility
 
-```
-APK
- └─ nativeLibraryDir/libbox64.so        (ARM64 Box64, shipped in the APK)
-      └─ exec()  ← allowed: nativeLibraryDir is the only app-owned exec path on API 29+
-           └─ loads files/bds-runtime/server/bedrock_server   (x86_64, mapped by Box64's ELF loader)
-                with BOX64_LD_LIBRARY_PATH = server dir : files/bds-runtime/x86lib/**
-                                                          (official Box64 x86_64 glibc bundle)
-```
+This project intentionally uses a conservative Android Gradle setup:
 
-Two rules make this work on an unrooted device:
+- Android Gradle Plugin 8.2.2
+- Gradle 8.2, pinned in `gradle/wrapper/gradle-wrapper.properties`
+- Java 17
+- compileSdk 35, minSdk 26, targetSdk 35
+- classic `buildscript` Gradle syntax, no version catalogs, no Kotlin DSL, no
+  Compose, no Android Studio-only plugins
+- only two Java dependencies, Apache Commons Compress and XZ
+- only `arm64-v8a`, matching Poco X4 GT
 
-1. **Only Box64 is exec'd, and only from `nativeLibraryDir`.** Android 10+
-   refuses `execve()` on files in the app data directory, and only `lib*.so`
-   entries are extracted into `nativeLibraryDir`, hence the name `libbox64.so`.
-2. **Nothing else is ever exec'd.** `bedrock_server`, its libraries and the
-   playit agent are all x86_64 and are mapped by Box64 itself, so they can live
-   in app data with no exec bit.
+If ACS Lite cannot use the wrapper, select Gradle 8.2 in its project settings.
+Do not use Gradle 8.6 or AGP 8.6 for this project.
 
-The playit tunnel agent runs the same way: the pinned **x86_64** `playit-cli`
-under Box64, because the official aarch64 playit build is glibc-linked and
-cannot run on Android's bionic userspace.
+## Build the first APK in ACS Lite
 
-## Building the APK (AIDE / ACS Lite)
+1. In a browser open https://github.com/leons888/MinecraftAndroidServer.
+2. Tap **Code**, then **Download ZIP**.
+3. Extract the ZIP into internal storage, for example
+   `Download/MinecraftAndroidServer-main`.
+4. Before opening it, run the Box64 GitHub Action: open the repository's
+   **Actions**, select **Build runtime artifacts**, press **Run workflow**, and
+   wait for the `box64-android-arm64` artifact.
+5. Download the artifact ZIP and extract `libbox64.so`. Copy it to:
 
-1. Run `.github/workflows/runtime-build.yml` (Actions → Run workflow).
-2. Download the `box64-android-arm64` artifact.
-3. Put `libbox64.so` into `app/src/main/jniLibs/arm64-v8a/`.
-4. Open the project in AIDE or ACS Lite and build. `arm64-v8a` is the only ABI,
-   `extractNativeLibs` is `true`, and `doNotStrip` keeps `libbox64.so` intact.
+   `app/src/main/jniLibs/arm64-v8a/libbox64.so`
 
-Without step 3 the APK still builds and installs, and the UI reports
-`libbox64.so is missing from …` instead of pretending to be ready.
+   The folder must contain the real binary, not only the README. Its name must
+   stay exactly `libbox64.so`.
+6. Open ACS Lite, choose **Open existing project**, and select the extracted
+   `MinecraftAndroidServer-main` folder, the folder containing `settings.gradle`.
+7. Set the Gradle JDK to Java 17 and Gradle to 8.2 if ACS Lite asks. Allow it
+   to download Android platform 35 and the two Maven dependencies.
+8. Select the `app` module and run **Assemble Debug APK**. The APK should be at
+   `app/build/outputs/apk/debug/app-debug.apk`.
+9. Install that APK on the Poco X4 GT.
 
-## First run on the device
+If ACS Lite reports that `libbox64.so` is not found, check that the file is
+inside `app/src/main/jniLibs/arm64-v8a`, not in `assets`, `res/raw`, or the ZIP
+root. If the APK builds without the file, it will install but the runtime will
+correctly report Box64 as missing.
 
-1. Launch the app. It fetches `runtime-manifest.json` and installs the pinned
-   artifacts into app data with SHA-256 verification:
-   * `box64-bundle-x86-libs-v0.4.2.tar.gz` → `files/bds-runtime/x86lib`
-   * `playit-cli-linux-amd64` → `files/bds-runtime/bin`
-2. Enter the BDS version and its trusted SHA-256, accept the Mojang terms, and
-   install. BDS lands in `files/bds-runtime/server`.
-3. Press Start. Box64 launches `bedrock_server`; stdout/stderr stream into the
-   log view and console commands go to its stdin.
+## How the server runs
 
-## Verification status
+`nativeLibraryDir/libbox64.so` is the only app-owned executable. Box64 loads
+`files/bds-runtime/server/bedrock_server` and the official x86_64 glibc bundle
+from app data through `BOX64_LD_LIBRARY_PATH`. No PRoot or Ubuntu rootfs is used.
 
-The Box64 build, the pinned hashes and the launch path are in place, but
-**BDS has not yet been observed starting on a physical device**. Until that
-happens the app reports the runtime as present, not as proven.
+## Device test
 
-## Testing on a Poco X4 GT (Android 14)
+1. Install the APK and launch it.
+2. Wait for `Installed box64-x86-libs-bundle` in the log.
+3. Check status: `box64Present: true` and non-empty `guestLibDirs`.
+4. Enter a BDS version and trusted SHA-256, then install it.
+5. Press Start. First success marker is `[BOX64] Box64 v0.4.2`.
+6. Continue until BDS says `Server started`, then connect over LAN to the
+   Poco's IP on UDP port 19132.
+7. Test console commands `list`, `stop`, and restart.
+8. Save the complete log if it fails. The first 30 lines matter most.
 
-Dimensity 8100, arm64-v8a, 4 KB pages: a supported Box64 configuration.
-
-1. Install the APK (allow install from unknown sources).
-2. Open the app, let the runtime install finish. Expect
-   `Installed box64-x86-libs-bundle` and `Installed playit-cli-linux-amd64`.
-3. Check that the status block shows `box64Present: true` and a non-empty
-   `guestLibDirs`.
-4. Install BDS with a version and matching SHA-256.
-5. Press Start and read the first log lines:
-   * `[BOX64] Box64 v0.4.2 … Running on …` means Box64 itself started.
-   * `[BOX64] Error loading …` or a missing-library message means
-     `BOX64_LD_LIBRARY_PATH` does not cover something BDS needs.
-   * `Permission denied` on `libbox64.so` means `extractNativeLibs` was lost or
-     the ABI split removed the library.
-6. Wait for `Server started.` in the BDS output, then join from the Minecraft
-   client on the same Wi-Fi at the device's LAN IP, port 19132 (UDP).
-7. Send `list` and then `stop` in the console to confirm stdin and clean
-   shutdown, then confirm the watchdog does not restart after a manual stop.
-8. For remote play, start playit and drive the claim flow from the log output.
-9. If the process dies instantly, retry with `BOX64_DYNAREC=0` behaviour in mind
-   (interpreter only, much slower) to separate dynarec bugs from loader bugs.
-
-Keep the device on a charger and disable battery optimisation for the app: the
-foreground service survives screen-off, aggressive OEM power management does not
-always respect it.
+This repository can be assembled before `libbox64.so` is added, but that APK
+will not run the server. A real first-test APK requires the verified Box64
+artifact in `jniLibs`.
