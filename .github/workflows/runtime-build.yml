@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install official PRoot build dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential clang libtalloc-dev libarchive-dev uthash-dev python3-dev swig lzop
+        run: sudo apt-get update && sudo apt-get install -y build-essential gcc-aarch64-linux-gnu libtalloc-dev libarchive-dev uthash-dev python3-dev swig lzop
       - name: Clone official PRoot source
         run: git clone --depth 1 https://github.com/proot-me/proot.git runtime-build/proot
       - name: Build static PRoot for ARM64 Linux
@@ -25,12 +25,6 @@ jobs:
         run: |
           make -C src clean
           make -C src CC='aarch64-linux-gnu-gcc' CFLAGS='-O2 -static' build
-        continue-on-error: true
-      - name: Report unsupported cross-build
-        if: failure()
-        run: |
-          echo 'The upstream PRoot build requires a configured AArch64 cross toolchain and its loader/syscall assumptions must be validated on Android.'
-          exit 1
       - name: Package and hash
         run: |
           test -f runtime-build/proot/src/proot
