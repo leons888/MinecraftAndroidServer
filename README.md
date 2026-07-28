@@ -1,11 +1,7 @@
 # MinecraftAndroidServer
 
-Android WebView control panel for the official Minecraft Bedrock Dedicated Server.
+This project is an Android WebView control app for an official Minecraft Bedrock Dedicated Server Linux binary.
 
-## Important runtime boundary
+The app does not bundle Mojang's server. It also refuses to launch without verified runtime artifacts. Runtime assets must be pinned by SHA-256 in `runtime-manifest.json`; placeholders intentionally block installation. This is a security requirement, not a demo.
 
-Mojang publishes BDS for Linux x86_64 and Windows, not Android ARM64. The app therefore does not execute the server through the Android linker. A compatible embedded Linux glibc userspace and Box64 runtime are required before the official BDS binary can run. The UI reports missing or incompatible runtime errors instead of fabricating a running server.
-
-The app downloads the BDS archive from the official Mojang URL pattern, computes SHA-256, rejects a supplied mismatching hash, extracts with zip-slip protection, forwards stdout/stderr to the WebView, accepts stdin commands, and exposes real Android process metrics.
-
-ACS Lite can open the Gradle Android project directly.
+The official BDS is x86_64 Linux. Android ARM64 therefore needs a compatible x86_64 userspace and Box64. Android kernel/security differences, especially ptrace/seccomp behavior, mean compatibility is device and OS-version dependent. The UI reports errors and never invents a running state.
