@@ -1,9 +1,9 @@
 # MinecraftAndroidServer
 
-## Verified source audit
+## Runtime build status
 
-Confirmed and pinned: Ubuntu 22.04 ARM64 rootfs from the official Ubuntu cloud-image endpoint, and Playit Agent v1.0.10 `linux-aarch64` from the official Playit GitHub release. Both have direct HTTPS URLs and SHA-256 digests in `runtime-manifest.json`.
+The repository now contains reproducible GitHub Actions builds from official PRoot and Box64 sources under `runtime-build/`. Box64 upstream publishes an Actions matrix containing Android and ARM64 targets, so a source build is technically possible. PRoot upstream builds on Linux and has ARM64 source support, but cross-compilation and Android ptrace/seccomp compatibility still require validation on a real device.
 
-PRoot is confirmed as an official Ubuntu ARM64 `.deb` with SHA-256, but not as a current standalone binary. Box64 is confirmed as official source plus Debian ARM64 package and GitHub bundle releases. The GitHub release does not expose a standalone ARM64 executable; the Debian endpoint did not expose a verified direct checksum in the checked response. They are therefore not silently installed as executable files.
+The workflow uploads hashed artifacts only. They are not automatically trusted by the APK: an artifact must first be tested on ARM64 Android, promoted to an immutable GitHub Release asset, and pinned in `runtime-manifest.json`.
 
-The Ubuntu ARM64 rootfs is the **host** userspace. It is not the x86_64 guest library set required by BDS. The launch command therefore requires a separate verified PRoot and Box64 plus x86_64 glibc libraries. The code keeps this distinction explicit and refuses to run when those prerequisites are missing.
+This avoids the old mistake of treating a source repository, temporary Actions artifact, or unsigned mirror as a production runtime binary.

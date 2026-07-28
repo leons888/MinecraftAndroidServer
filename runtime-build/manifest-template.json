@@ -1,0 +1,8 @@
+{
+  "schema": 3,
+  "note": "Replace only after a successful runtime-build workflow and real-device validation",
+  "artifacts": {
+    "proot": {"url":"", "sha256":"", "source":"https://github.com/proot-me/proot"},
+    "box64": {"url":"", "sha256":"", "source":"https://github.com/ptitSeb/box64/tree/v0.4.2"}
+  }
+}
