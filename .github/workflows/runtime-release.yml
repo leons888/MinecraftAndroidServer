@@ -2,11 +2,6 @@ name: Publish verified runtime assets
 
 on:
   workflow_dispatch:
-    inputs:
-      publish:
-        description: Publish successful build outputs as a GitHub Release
-        required: true
-        default: 'false'
   push:
     tags: ['runtime-v*']
 
@@ -28,18 +23,27 @@ jobs:
           pattern: 'box64-android-arm64'
           path: release-assets
           merge-multiple: true
-      - name: Validate artifacts and generate checksums
+      - name: Validate ELF and generate checksums
         shell: bash
         run: |
           set -euo pipefail
           test -s release-assets/libbox64.so
-          test -s release-assets/box64-android-arm64
-          file release-assets/libbox64.so
-          readelf -h release-assets/libbox64.so
-          sha256sum release-assets/libbox64.so release-assets/box64-android-arm64 | tee release-assets/SHA256SUMS
-      - uses: softprops/action-gh-release@v2
+          file release-assets/libbox64.so | grep -Eq 'ELF 64-bit LSB (pie )?executable, ARM aarch64'
+          readelf -h release-assets/libbox64.so | tee release-assets/libbox64.readelf.txt
+          readelf -d release-assets/libbox64.so | tee release-assets/libbox64.dynamic.txt
+          sha256sum release-assets/libbox64.so | tee release-assets/SHA256SUMS
+          grep -Eq '^[0-9a-fA-F]{64}  libbox64\.so$' release-assets/SHA256SUMS
+      - name: Publish runtime release
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Runtime ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
           generate_release_notes: true
-          files: release-assets/*
+          files: |
+            release-assets/libbox64.so
+            release-assets/SHA256SUMS
+            release-assets/libbox64.readelf.txt
+            release-assets/libbox64.dynamic.txt
