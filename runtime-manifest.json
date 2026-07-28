@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "status": "unpublished until official assets and checksums are pinned",
+  "artifacts": [
+    {
+      "id": "proot-arm64",
+      "kind": "executable",
+      "url": "https://raw.githubusercontent.com/proot-me/proot-static-build/master/static/proot-arm64",
+      "sha256": "REPLACE_WITH_PINNED_SHA256"
+    },
+    {
+      "id": "box64-arm64",
+      "kind": "executable",
+      "url": "",
+      "sha256": "REPLACE_WITH_PINNED_SHA256"
+    },
+    {
+      "id": "debian-glibc-rootfs",
+      "kind": "tar.gz",
+      "url": "",
+      "sha256": "REPLACE_WITH_PINNED_SHA256"
+    },
+    {
+      "id": "playit-arm64",
+      "kind": "executable",
+      "url": "",
+      "sha256": "REPLACE_WITH_PINNED_SHA256"
+    }
+  ]
+}
