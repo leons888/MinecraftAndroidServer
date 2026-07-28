@@ -1,5 +1,7 @@
 apply plugin: 'com.android.application'
 
+import java.security.MessageDigest
+
 android {
     namespace 'com.bdscontrol.app'
     compileSdk 35
@@ -13,13 +15,17 @@ android {
         ndk { abiFilters 'arm64-v8a' }
     }
 
-    // Box64 is an executable disguised as a native library. Keep it intact.
     packagingOptions {
         doNotStrip '*/arm64-v8a/*.so'
     }
 
     sourceSets {
-        main { jniLibs.srcDirs = ['src/main/jniLibs'] }
+        main {
+            jniLibs.srcDirs = [
+                'src/main/jniLibs',
+                "$buildDir/generated/jniLibs"
+            ]
+        }
     }
 
     compileOptions {
@@ -27,6 +33,65 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 }
+
+// The APK build owns the runtime bootstrap. ACS Lite only needs to open this
+// project and run assembleDebug: no libbox64.so copy step is required.
+def box64Version = 'runtime-v1'
+def box64BaseUrl = "https://github.com/leons888/MinecraftAndroidServer/releases/download/${box64Version}"
+def box64AssetUrl = "${box64BaseUrl}/libbox64.so"
+def box64ChecksumsUrl = "${box64BaseUrl}/SHA256SUMS"
+def box64Out = file("$buildDir/generated/jniLibs/arm64-v8a/libbox64.so")
+def box64Sha256 = { File f ->
+    MessageDigest digest = MessageDigest.getInstance('SHA-256')
+    f.withInputStream { input ->
+        byte[] buffer = new byte[1024 * 1024]
+        int count
+        while ((count = input.read(buffer)) != -1) digest.update(buffer, 0, count)
+    }
+    digest.digest().collect { String.format('%02x', it) }.join()
+}
+
+tasks.register('downloadBox64') {
+    outputs.file(box64Out)
+    doLast {
+        if (!box64Out.parentFile.exists()) box64Out.parentFile.mkdirs()
+        File checksumFile = file("$buildDir/box64/SHA256SUMS")
+        if (!checksumFile.parentFile.exists()) checksumFile.parentFile.mkdirs()
+        try {
+            new URL(box64ChecksumsUrl).withInputStream { input ->
+                checksumFile.withOutputStream { output -> output << input }
+            }
+        } catch (Exception e) {
+            throw new GradleException("Box64 runtime release ${box64Version} is unavailable. Open ${box64ChecksumsUrl} in a browser and publish the runtime release before building.", e)
+        }
+        String expected = checksumFile.readLines('UTF-8').find { it.contains('libbox64.so') }?.trim()?.split('\\s+')[0]
+        if (expected == null || !(expected ==~ /[0-9a-fA-F]{64}/)) {
+            throw new GradleException("Box64 release checksum is missing from ${box64ChecksumsUrl}. The APK will not package an unverified binary.")
+        }
+        File tmp = file("${box64Out}.part")
+        try {
+            new URL(box64AssetUrl).withInputStream { input ->
+                tmp.withOutputStream { output -> output << input }
+            }
+            String actual = box64Sha256(tmp)
+            if (!actual.equalsIgnoreCase(expected)) {
+                throw new GradleException("Box64 SHA-256 mismatch. Expected ${expected}, got ${actual}. Delete ${tmp} and retry.")
+            }
+            if (box64Out.exists()) box64Out.delete()
+            if (!tmp.renameTo(box64Out)) throw new GradleException("Could not install verified Box64 at ${box64Out}")
+            box64Out.setExecutable(true, false)
+            logger.lifecycle("Verified Box64 ${box64Version}: ${actual}")
+        } catch (GradleException e) {
+            tmp.delete()
+            throw e
+        } catch (Exception e) {
+            tmp.delete()
+            throw new GradleException("Could not download Box64 from ${box64AssetUrl}. Check internet access and the runtime release.", e)
+        }
+    }
+}
+
+tasks.named('preBuild').configure { dependsOn tasks.named('downloadBox64') }
 
 dependencies {
     implementation 'org.apache.commons:commons-compress:1.27.1'

@@ -1,70 +1,63 @@
 # MinecraftAndroidServer
 
 Minecraft Bedrock Dedicated Server on stock Android. No Termux, no root, no
-PRoot, no Linux rootfs. The first target device is Poco X4 GT, Android 14.
+PRoot, no Linux rootfs. Target device: Poco X4 GT, Android 14.
 
-## ACS Lite / AIDE compatibility
+## One-click project flow
 
-This project intentionally uses a conservative Android Gradle setup:
+This repository is designed so the user does **not** copy binaries manually:
 
-- Android Gradle Plugin 8.2.2
-- Gradle 8.2, pinned in `gradle/wrapper/gradle-wrapper.properties`
-- Java 17
-- compileSdk 35, minSdk 26, targetSdk 35
-- classic `buildscript` Gradle syntax, no version catalogs, no Kotlin DSL, no
-  Compose, no Android Studio-only plugins
-- only two Java dependencies, Apache Commons Compress and XZ
-- only `arm64-v8a`, matching Poco X4 GT
+1. Download the repository ZIP.
+2. Open the project root in ACS Lite.
+3. Build `app:assembleDebug`.
+4. Gradle automatically downloads and SHA-256 verifies
+   `libbox64.so` from the project's `runtime-v1` GitHub Release and packages
+   it into the APK's `jniLibs/arm64-v8a`.
+5. Install the APK. On first launch, the app downloads only the pinned
+   x86_64 guest-library bundle and x86_64 Playit CLI into private app data.
 
-If ACS Lite cannot use the wrapper, select Gradle 8.2 in its project settings.
-Do not use Gradle 8.6 or AGP 8.6 for this project.
+No `libbox64.so`, runtime archive, or other binary is copied into the source
+tree.
 
-## Build the first APK in ACS Lite
+## Important first-build requirement
 
-1. In a browser open https://github.com/leons888/MinecraftAndroidServer.
-2. Tap **Code**, then **Download ZIP**.
-3. Extract the ZIP into internal storage, for example
-   `Download/MinecraftAndroidServer-main`.
-4. Before opening it, run the Box64 GitHub Action: open the repository's
-   **Actions**, select **Build runtime artifacts**, press **Run workflow**, and
-   wait for the `box64-android-arm64` artifact.
-5. Download the artifact ZIP and extract `libbox64.so`. Copy it to:
+The repository must have a published runtime Release named `runtime-v1` with
+these assets:
 
-   `app/src/main/jniLibs/arm64-v8a/libbox64.so`
+- `libbox64.so`
+- `SHA256SUMS`, containing a line for `libbox64.so`
 
-   The folder must contain the real binary, not only the README. Its name must
-   stay exactly `libbox64.so`.
-6. Open ACS Lite, choose **Open existing project**, and select the extracted
-   `MinecraftAndroidServer-main` folder, the folder containing `settings.gradle`.
-7. Set the Gradle JDK to Java 17 and Gradle to 8.2 if ACS Lite asks. Allow it
-   to download Android platform 35 and the two Maven dependencies.
-8. Select the `app` module and run **Assemble Debug APK**. The APK should be at
-   `app/build/outputs/apk/debug/app-debug.apk`.
-9. Install that APK on the Poco X4 GT.
+If the Release is missing, ACS Lite stops with a clear error instead of building
+an APK with an unverified or nonfunctional Box64. This is intentional.
 
-If ACS Lite reports that `libbox64.so` is not found, check that the file is
-inside `app/src/main/jniLibs/arm64-v8a`, not in `assets`, `res/raw`, or the ZIP
-root. If the APK builds without the file, it will install but the runtime will
-correctly report Box64 as missing.
+## ACS Lite build
 
-## How the server runs
+Use Java 17, AGP 8.2.2, and Gradle 8.2. Open the folder containing
+`settings.gradle`, then run **Assemble Debug APK**. The output is
+`app/build/outputs/apk/debug/app-debug.apk`. The build needs internet access for
+the Gradle distribution, Maven dependencies, and the runtime Release.
 
-`nativeLibraryDir/libbox64.so` is the only app-owned executable. Box64 loads
-`files/bds-runtime/server/bedrock_server` and the official x86_64 glibc bundle
-from app data through `BOX64_LD_LIBRARY_PATH`. No PRoot or Ubuntu rootfs is used.
+## First launch
+
+The app verifies and downloads exactly two runtime artifacts from
+`runtime-manifest.json`: the official Box64 x86_64 guest-library bundle and the
+Playit x86_64 CLI. They are stored in private app data. BDS is downloaded later
+after the user enters its version and trusted SHA-256.
+
+If a first-run download fails, the log shows the artifact name and URL. Press
+Runtime install again after restoring internet or storage. No manual file copy is
+needed.
 
 ## Device test
 
-1. Install the APK and launch it.
-2. Wait for `Installed box64-x86-libs-bundle` in the log.
-3. Check status: `box64Present: true` and non-empty `guestLibDirs`.
-4. Enter a BDS version and trusted SHA-256, then install it.
-5. Press Start. First success marker is `[BOX64] Box64 v0.4.2`.
-6. Continue until BDS says `Server started`, then connect over LAN to the
-   Poco's IP on UDP port 19132.
-7. Test console commands `list`, `stop`, and restart.
-8. Save the complete log if it fails. The first 30 lines matter most.
+1. Install the APK on Poco X4 GT.
+2. Wait for `Runtime files ready` and verify `box64Present: true`.
+3. Enter the BDS version and trusted SHA-256, then install.
+4. Press Start. The first success marker is `[BOX64] Box64 v0.4.2`.
+5. Continue until BDS says `Server started`, then connect over LAN to UDP
+   port 19132.
+6. Test `list`, `stop`, and restart. Keep the phone charging and disable
+   battery optimization for the app.
 
-This repository can be assembled before `libbox64.so` is added, but that APK
-will not run the server. A real first-test APK requires the verified Box64
-artifact in `jniLibs`.
+If the build fails with “runtime-v1 is unavailable”, the Release has not been
+published yet. That is a repository release problem, not an ACS Lite problem.
