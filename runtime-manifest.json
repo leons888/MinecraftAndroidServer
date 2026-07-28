@@ -1,30 +1,25 @@
 {
-  "schema": 1,
-  "status": "unpublished until official assets and checksums are pinned",
+  "schema": 2,
+  "generated_at": "2026-07-28",
   "artifacts": [
     {
-      "id": "proot-arm64",
-      "kind": "executable",
-      "url": "https://raw.githubusercontent.com/proot-me/proot-static-build/master/static/proot-arm64",
-      "sha256": "REPLACE_WITH_PINNED_SHA256"
+      "id": "ubuntu-22.04-arm64-rootfs",
+      "kind": "tar.xz",
+      "url": "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-arm64-root.tar.xz",
+      "sha256": "f852e776602e3fbc2a3f1515f94da4cb14d472e5b73d28dd9417f8760c529e7e",
+      "license": "Ubuntu licensing terms"
     },
     {
-      "id": "box64-arm64",
+      "id": "playit-linux-aarch64",
       "kind": "executable",
-      "url": "",
-      "sha256": "REPLACE_WITH_PINNED_SHA256"
-    },
-    {
-      "id": "debian-glibc-rootfs",
-      "kind": "tar.gz",
-      "url": "",
-      "sha256": "REPLACE_WITH_PINNED_SHA256"
-    },
-    {
-      "id": "playit-arm64",
-      "kind": "executable",
-      "url": "",
-      "sha256": "REPLACE_WITH_PINNED_SHA256"
+      "url": "https://github.com/playit-cloud/playit-agent/releases/download/v1.0.10/playit-linux-aarch64",
+      "sha256": "4c0db3e7b3a8158e249441c2f0b73f54e83429395890c7b1ca45fd7a6303d763",
+      "license": "Playit agent project license"
     }
-  ]
+  ],
+  "unavailable": {
+    "proot": "Official Ubuntu ARM64 package exists, but is a .deb and requires ar+tar.xz extraction; no official standalone current ARM64 binary with a published digest was found.",
+    "box64": "Official Box64 source and Debian ARM64 package exist. The official GitHub release exposes bundles, not a standalone ARM64 executable; Debian package metadata was not available as a verified direct SHA-256 asset through the checked public endpoint.",
+    "bds": "Official Mojang Linux download exists and is x86_64; it must be downloaded after the user accepts Mojang terms and its version-specific checksum must be supplied from a trusted source."
+  }
 }
