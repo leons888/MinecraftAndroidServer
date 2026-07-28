@@ -1,33 +1,37 @@
 {
-  "schema": 2,
+  "schema": 3,
   "generated_at": "2026-07-28",
+  "runtime": {
+    "mode": "box64-direct",
+    "proot": false,
+    "rootfs": false,
+    "note": "Box64 is not downloaded. It ships inside the APK as jniLibs/arm64-v8a/libbox64.so and is executed from nativeLibraryDir, the only app-owned path Android API 29+ allows exec() from. Everything listed below is loaded by Box64's own ELF loader out of app data and therefore never needs an exec bit."
+  },
   "artifacts": [
-    {
-      "id": "ubuntu-22.04-arm64-rootfs",
-      "kind": "tar.xz",
-      "url": "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-arm64-root.tar.xz",
-      "sha256": "f852e776602e3fbc2a3f1515f94da4cb14d472e5b73d28dd9417f8760c529e7e",
-      "license": "Ubuntu licensing terms"
-    },
     {
       "id": "box64-x86-libs-bundle",
       "kind": "tar.gz",
       "url": "https://github.com/ptitSeb/box64/releases/download/v0.4.2/box64-bundle-x86-libs-v0.4.2.tar.gz",
       "sha256": "e5076e2b951d3d51056b45c4e4943729ea2be95a3ec416e602cbe096013eb19e",
       "license": "Upstream distro licenses of the bundled glibc/libstdc++ libraries",
-      "notes": "Official Box64 v0.4.2 release asset. Supplies the x86_64 glibc/libstdc++ guest libraries BDS links against. Point BOX64_LD_LIBRARY_PATH at its lib directory."
+      "notes": "Official Box64 v0.4.2 release asset. Supplies the x86_64 glibc and libstdc++ guest libraries bedrock_server links against. Extracted to files/bds-runtime/x86lib and exposed through BOX64_LD_LIBRARY_PATH."
     },
     {
-      "id": "playit-linux-aarch64",
+      "id": "playit-cli-linux-amd64",
       "kind": "executable",
-      "url": "https://github.com/playit-cloud/playit-agent/releases/download/v1.0.10/playit-linux-aarch64",
-      "sha256": "4c0db3e7b3a8158e249441c2f0b73f54e83429395890c7b1ca45fd7a6303d763",
-      "license": "Playit agent project license"
+      "url": "https://github.com/playit-cloud/playit-agent/releases/download/v1.0.10/playit-cli-linux-amd64",
+      "sha256": "6fd54d147ae1d3232b22c1c1f4aa3d13cf16d889e840ca2d3f90b4f50a2e7301",
+      "license": "Playit agent project license",
+      "notes": "x86_64 build on purpose: it runs through Box64. The official aarch64 playit binary is glibc-linked and cannot run on Android bionic."
     }
   ],
   "unavailable": {
-    "proot": "Official Ubuntu ARM64 package exists, but is a .deb and requires ar+tar.xz extraction; no official standalone current ARM64 binary with a published digest was found.",
-    "box64": "No upstream standalone Android ARM64 executable is published; it must be built by .github/workflows/runtime-build.yml and attached to a runtime-v* Release before it can be pinned here.",
-    "bds": "Official Mojang Linux download exists and is x86_64; it must be downloaded after the user accepts Mojang terms and its version-specific checksum must be supplied from a trusted source."
+    "box64": "No upstream standalone Android ARM64 executable is published. It must be built by .github/workflows/runtime-build.yml, verified on a device, and placed in app/src/main/jniLibs/arm64-v8a/libbox64.so before building the APK.",
+    "bds": "Official Mojang Linux download is x86_64 and must be fetched after the user accepts Mojang terms, with a version-specific SHA-256 supplied from a trusted source."
+  },
+  "removed": {
+    "ubuntu-22.04-arm64-rootfs": "Dropped. It was an ARM64 host userspace, useless for an x86_64 guest, and needed PRoot to be reachable at all.",
+    "proot": "Dropped. Android API 29+ forbids exec() from app data, so a downloaded PRoot binary could never be launched, and PRoot's ptrace path is unreliable under Android seccomp.",
+    "playit-linux-aarch64": "Dropped. glibc-linked ARM64 binary; unusable on bionic and unexecutable from app data."
   }
 }

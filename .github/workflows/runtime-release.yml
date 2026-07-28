@@ -25,18 +25,18 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: '*-aarch64*'
+          pattern: 'box64-android-arm64'
           path: release-assets
           merge-multiple: true
       - name: Validate artifacts and generate checksums
         shell: bash
         run: |
           set -euo pipefail
-          test -s release-assets/proot-aarch64
+          test -s release-assets/libbox64.so
           test -s release-assets/box64-android-arm64
-          file release-assets/proot-aarch64
-          file release-assets/box64-android-arm64
-          sha256sum release-assets/proot-aarch64 release-assets/box64-android-arm64 | tee release-assets/SHA256SUMS
+          file release-assets/libbox64.so
+          readelf -h release-assets/libbox64.so
+          sha256sum release-assets/libbox64.so release-assets/box64-android-arm64 | tee release-assets/SHA256SUMS
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}

@@ -12,40 +12,14 @@ permissions:
   contents: read
 
 jobs:
-  proot-arm64:
-    name: Build PRoot ARM64 Linux
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install official PRoot build dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential gcc-aarch64-linux-gnu libtalloc-dev libarchive-dev uthash-dev python3-dev swig lzop
-      - name: Clone official PRoot source
-        run: git clone --depth 1 https://github.com/proot-me/proot.git runtime-build/proot
-      - name: Build static PRoot for ARM64 Linux
-        working-directory: runtime-build/proot
-        run: |
-          make -C src clean
-          make -C src CC='aarch64-linux-gnu-gcc' CFLAGS='-O2 -static' build
-      - name: Package and hash
-        run: |
-          set -euo pipefail
-          test -f runtime-build/proot/src/proot
-          install -Dm755 runtime-build/proot/src/proot runtime-build/out/proot-aarch64
-          file runtime-build/out/proot-aarch64
-          sha256sum runtime-build/out/proot-aarch64 | tee runtime-build/out/proot-aarch64.sha256
-      - uses: actions/upload-artifact@v4
-        with:
-          name: proot-aarch64
-          path: runtime-build/out/proot-aarch64*
-
   box64-android-arm64:
     name: Build Box64 Android ARM64
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Install build tools
-        run: sudo apt-get update && sudo apt-get install -y git cmake make python3 patchelf binutils libzydis-dev
-      - name: Fetch Android NDK r26b (same NDK upstream Box64 CI uses)
+        run: sudo apt-get update && sudo apt-get install -y git cmake make python3 patchelf binutils file
+      - name: Fetch Android NDK r26b (the NDK upstream Box64 CI uses)
         run: |
           set -euo pipefail
           wget -q https://dl.google.com/android/repository/android-ndk-r26b-linux.zip
@@ -53,7 +27,7 @@ jobs:
           echo "BOX64_COMPILER=$PWD/android-ndk-r26b/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android31-clang" >> $GITHUB_ENV
       - name: Clone official Box64 source
         run: git clone --depth 1 --branch v0.4.2 https://github.com/ptitSeb/box64.git runtime-build/box64
-      - name: Configure official Android ARM64 build
+      - name: Configure Android ARM64 build (mirrors upstream ANDROID target)
         working-directory: runtime-build/box64
         run: |
           set -euo pipefail
@@ -76,17 +50,17 @@ jobs:
         run: |
           set -euo pipefail
           test -f runtime-build/box64/build/box64
-          install -Dm755 runtime-build/box64/build/box64 runtime-build/out/box64-android-arm64
-          # same binary under an .so name so it can be shipped inside the APK
-          # (jniLibs/arm64-v8a), which is the only place Android lets an app exec from
+          # libbox64.so is the APK-shippable name: only lib*.so files are extracted
+          # into nativeLibraryDir, and that is the only app dir Android lets us exec from.
           install -Dm755 runtime-build/box64/build/box64 runtime-build/out/libbox64.so
-          file runtime-build/out/box64-android-arm64
-          readelf -h runtime-build/out/box64-android-arm64
-          readelf -d runtime-build/out/box64-android-arm64
-          sha256sum runtime-build/out/box64-android-arm64 runtime-build/out/libbox64.so | tee runtime-build/out/box64-android-arm64.sha256
+          install -Dm755 runtime-build/box64/build/box64 runtime-build/out/box64-android-arm64
+          file runtime-build/out/libbox64.so
+          readelf -h runtime-build/out/libbox64.so
+          readelf -d runtime-build/out/libbox64.so
+          sha256sum runtime-build/out/libbox64.so runtime-build/out/box64-android-arm64 | tee runtime-build/out/box64-android-arm64.sha256
       - uses: actions/upload-artifact@v4
         with:
           name: box64-android-arm64
           path: |
-            runtime-build/out/box64-android-arm64*
             runtime-build/out/libbox64.so
+            runtime-build/out/box64-android-arm64*
