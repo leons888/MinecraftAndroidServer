@@ -36,7 +36,7 @@ jobs:
           file release-assets/libbox64.so | grep -Eq 'ELF 64-bit LSB (pie )?executable, ARM aarch64'
           readelf -h release-assets/libbox64.so | tee release-assets/libbox64.readelf.txt
           readelf -d release-assets/libbox64.so | tee release-assets/libbox64.dynamic.txt
-          sha256sum release-assets/libbox64.so | tee release-assets/SHA256SUMS
+          (cd release-assets && sha256sum libbox64.so | tee SHA256SUMS)
           grep -Eq '^[0-9a-fA-F]{64}  libbox64\.so$' release-assets/SHA256SUMS
       - name: Publish runtime release
         uses: softprops/action-gh-release@v2
