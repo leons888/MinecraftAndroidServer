@@ -1,6 +1,7 @@
 name: Build runtime artifacts
 
 on:
+  workflow_call:
   workflow_dispatch:
   push:
     paths:
@@ -8,7 +9,7 @@ on:
       - 'runtime-build/**'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   proot-arm64:
@@ -27,8 +28,10 @@ jobs:
           make -C src CC='aarch64-linux-gnu-gcc' CFLAGS='-O2 -static' build
       - name: Package and hash
         run: |
+          set -euo pipefail
           test -f runtime-build/proot/src/proot
           install -Dm755 runtime-build/proot/src/proot runtime-build/out/proot-aarch64
+          file runtime-build/out/proot-aarch64
           sha256sum runtime-build/out/proot-aarch64 | tee runtime-build/out/proot-aarch64.sha256
       - uses: actions/upload-artifact@v4
         with:
@@ -64,8 +67,10 @@ jobs:
         run: cmake --build build --parallel 2
       - name: Package and hash
         run: |
+          set -euo pipefail
           test -f runtime-build/box64/build/box64
           install -Dm755 runtime-build/box64/build/box64 runtime-build/out/box64-android-arm64
+          file runtime-build/out/box64-android-arm64
           sha256sum runtime-build/out/box64-android-arm64 | tee runtime-build/out/box64-android-arm64.sha256
       - uses: actions/upload-artifact@v4
         with:

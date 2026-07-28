@@ -1,8 +1,8 @@
 {
-  "schema": 3,
-  "note": "Replace only after a successful runtime-build workflow and real-device validation",
+  "schema": 4,
+  "note": "This file is intentionally not a production manifest until runtime-v* CI outputs pass real-device validation.",
   "artifacts": {
-    "proot": {"url":"", "sha256":"", "source":"https://github.com/proot-me/proot"},
-    "box64": {"url":"", "sha256":"", "source":"https://github.com/ptitSeb/box64/tree/v0.4.2"}
+    "proot": {"url":"", "sha256":"", "source":"official PRoot build"},
+    "box64": {"url":"", "sha256":"", "source":"official Box64 v0.4.2 Android ARM64 build"}
   }
 }
