@@ -1,30 +1,13 @@
 package com.bdscontrol.app;
 
-import android.content.Context;import java.io.File;import java.util.*;
+import android.content.Context;import org.json.JSONObject;import java.io.File;import java.util.*;
 
-/**
- * Runs the playit tunnel agent.
- *
- * The official aarch64 playit build is a glibc binary and cannot run on Android's
- * bionic userspace, so the pinned x86_64 build is executed through Box64 instead,
- * exactly like BDS. stdin stays open so the interactive claim flow can be driven
- * from the WebView UI.
- */
 final class PlayitManager {
- private final RuntimeManager runtime;private final LogManager log;private final File dir;private final ProcessManager pm=new ProcessManager();
+ private final RuntimeManager runtime;private final LogManager log;private final File dir;private final ProcessManager pm=new ProcessManager();private volatile String address="";private volatile String state="stopped";
  PlayitManager(Context c,RuntimeManager r,LogManager l){runtime=r;log=l;dir=new File(c.getFilesDir(),"bds-runtime/playit");dir.mkdirs();}
  File binary(){return new File(runtime.bin(),"playit-cli-linux-amd64");}
- void start(String argLine){new Thread(()->{try{
-  if(!runtime.box64Present())throw new IllegalStateException(runtime.reason());
-  if(!binary().isFile())throw new IllegalStateException("playit-cli is not installed yet; run the runtime install first");
-  List<String> cmd=new ArrayList<>();
-  cmd.add(runtime.box64().getAbsolutePath());
-  cmd.add(binary().getAbsolutePath());
-  if(argLine!=null)for(String s:argLine.trim().split("\\s+"))if(!s.isEmpty())cmd.add(s);
-  pm.start(cmd,dir,runtime.env(dir),(src,line)->log.line("playit",line));
-  log.event("info","playit-cli started under Box64: "+cmd);
- }catch(Exception e){log.event("error","playit-cli not started: "+e.getMessage());}},"playit-start").start();}
+ void start(String secret){new Thread(()->{try{if(!runtime.box64Present())throw new IllegalStateException(runtime.reason());if(!binary().isFile())throw new IllegalStateException("playit-cli is not installed yet");List<String> cmd=new ArrayList<>();cmd.add(runtime.box64().getAbsolutePath());cmd.add(binary().getAbsolutePath());if(secret!=null&&!secret.isEmpty()){cmd.add("--secret");cmd.add(secret);}pm.start(cmd,dir,runtime.env(dir),(src,line)->{parse(line);log.line("playit",line);});state="running";log.event("info","Playit tunnel started");}catch(Exception e){state="error";log.event("error","Playit failed: "+e.getMessage());}},"playit-start").start();}
+ private void parse(String line){String s=line.trim();if(s.matches(".*[a-z0-9-]+\\.gl\\.at\\.ply\\.gg:[0-9]+.*")){String[] p=s.split("\\s+");for(String x:p)if(x.contains(".gl.at.ply.gg:")){address=x.replaceAll("[^a-zA-Z0-9.:-]","");break;} } }
  void send(String line){try{pm.write(line);}catch(Exception e){log.event("error","playit stdin: "+e);}}
- void stop(){pm.stop();}
- boolean alive(){return pm.alive();}
+ void stop(){pm.stop();state="stopped";address="";}String status(){try{return new JSONObject().put("state",state).put("alive",pm.alive()).put("address",address).toString();}catch(Exception e){return "{\"state\":\"error\"}";}}
 }
