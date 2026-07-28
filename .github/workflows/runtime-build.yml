@@ -44,35 +44,49 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install build tools
-        run: sudo apt-get update && sudo apt-get install -y git cmake ninja-build clang lld
-      - name: Install Android SDK and NDK
-        uses: android-actions/setup-android@v3
-      - name: Install Android SDK packages
-        run: sdkmanager 'platform-tools' 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.2.12479018'
+        run: sudo apt-get update && sudo apt-get install -y git cmake make python3 patchelf binutils libzydis-dev
+      - name: Fetch Android NDK r26b (same NDK upstream Box64 CI uses)
+        run: |
+          set -euo pipefail
+          wget -q https://dl.google.com/android/repository/android-ndk-r26b-linux.zip
+          unzip -qq android-ndk-r26b-linux.zip
+          echo "BOX64_COMPILER=$PWD/android-ndk-r26b/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android31-clang" >> $GITHUB_ENV
       - name: Clone official Box64 source
         run: git clone --depth 1 --branch v0.4.2 https://github.com/ptitSeb/box64.git runtime-build/box64
       - name: Configure official Android ARM64 build
         working-directory: runtime-build/box64
         run: |
-          cmake -S . -B build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
+          set -euo pipefail
+          cmake -S . -B build \
+            -DCMAKE_C_COMPILER="$BOX64_COMPILER" \
             -DANDROID=1 \
+            -DARM_DYNAREC=1 \
+            -DBAD_SIGNAL=1 \
             -DTERMUX=0 \
-            -DCMAKE_SYSTEM_NAME=Android \
-            -DANDROID_ABI=arm64-v8a \
-            -DANDROID_PLATFORM=android-26 \
-            -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake"
+            -DCI=0 \
+            -DZYDIS3=0 \
+            -DHAVE_TRACE=0 \
+            -DSTATICBUILD=0 \
+            -DBOX32=0 \
+            -DCMAKE_BUILD_TYPE=Release
       - name: Build
         working-directory: runtime-build/box64
-        run: cmake --build build --parallel 2
-      - name: Package and hash
+        run: cmake --build build --parallel $(nproc)
+      - name: Package, verify and hash
         run: |
           set -euo pipefail
           test -f runtime-build/box64/build/box64
           install -Dm755 runtime-build/box64/build/box64 runtime-build/out/box64-android-arm64
+          # same binary under an .so name so it can be shipped inside the APK
+          # (jniLibs/arm64-v8a), which is the only place Android lets an app exec from
+          install -Dm755 runtime-build/box64/build/box64 runtime-build/out/libbox64.so
           file runtime-build/out/box64-android-arm64
-          sha256sum runtime-build/out/box64-android-arm64 | tee runtime-build/out/box64-android-arm64.sha256
+          readelf -h runtime-build/out/box64-android-arm64
+          readelf -d runtime-build/out/box64-android-arm64
+          sha256sum runtime-build/out/box64-android-arm64 runtime-build/out/libbox64.so | tee runtime-build/out/box64-android-arm64.sha256
       - uses: actions/upload-artifact@v4
         with:
           name: box64-android-arm64
-          path: runtime-build/out/box64-android-arm64*
+          path: |
+            runtime-build/out/box64-android-arm64*
+            runtime-build/out/libbox64.so

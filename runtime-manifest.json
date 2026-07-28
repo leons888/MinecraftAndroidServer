@@ -10,6 +10,14 @@
       "license": "Ubuntu licensing terms"
     },
     {
+      "id": "box64-x86-libs-bundle",
+      "kind": "tar.gz",
+      "url": "https://github.com/ptitSeb/box64/releases/download/v0.4.2/box64-bundle-x86-libs-v0.4.2.tar.gz",
+      "sha256": "e5076e2b951d3d51056b45c4e4943729ea2be95a3ec416e602cbe096013eb19e",
+      "license": "Upstream distro licenses of the bundled glibc/libstdc++ libraries",
+      "notes": "Official Box64 v0.4.2 release asset. Supplies the x86_64 glibc/libstdc++ guest libraries BDS links against. Point BOX64_LD_LIBRARY_PATH at its lib directory."
+    },
+    {
       "id": "playit-linux-aarch64",
       "kind": "executable",
       "url": "https://github.com/playit-cloud/playit-agent/releases/download/v1.0.10/playit-linux-aarch64",
@@ -19,7 +27,7 @@
   ],
   "unavailable": {
     "proot": "Official Ubuntu ARM64 package exists, but is a .deb and requires ar+tar.xz extraction; no official standalone current ARM64 binary with a published digest was found.",
-    "box64": "Official Box64 source and Debian ARM64 package exist. The official GitHub release exposes bundles, not a standalone ARM64 executable; Debian package metadata was not available as a verified direct SHA-256 asset through the checked public endpoint.",
+    "box64": "No upstream standalone Android ARM64 executable is published; it must be built by .github/workflows/runtime-build.yml and attached to a runtime-v* Release before it can be pinned here.",
     "bds": "Official Mojang Linux download exists and is x86_64; it must be downloaded after the user accepts Mojang terms and its version-specific checksum must be supplied from a trusted source."
   }
 }
