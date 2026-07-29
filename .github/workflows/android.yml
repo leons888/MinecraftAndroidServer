@@ -21,6 +21,11 @@ jobs:
         with:
           name: box64-android-arm64
           path: app/build/generated/jniLibs/arm64-v8a
+      - name: Verify artifact is the Linux-guest Box64 build
+        run: |
+          set -euo pipefail
+          test -s app/build/generated/jniLibs/arm64-v8a/libbox64.so
+          readelf -Ws app/build/generated/jniLibs/arm64-v8a/libbox64.so | grep -q 'my___libc_start_main'
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: '17' }
       - uses: android-actions/setup-android@v3
@@ -43,6 +48,7 @@ jobs:
           unzip -l "$APK" | grep -q 'lib/arm64-v8a/libbox64.so'
           unzip -p "$APK" lib/arm64-v8a/libbox64.so > /tmp/libbox64.so
           file /tmp/libbox64.so | grep -Eq 'ELF 64-bit LSB (pie )?executable, ARM aarch64'
+          readelf -Ws /tmp/libbox64.so | grep -q 'my___libc_start_main'
           grep -q 'android:extractNativeLibs="true"' app/src/main/AndroidManifest.xml
       - name: Calculate APK SHA-256
         run: sha256sum app/build/outputs/apk/debug/app-debug.apk | tee app/build/outputs/apk/debug/app-debug.apk.sha256

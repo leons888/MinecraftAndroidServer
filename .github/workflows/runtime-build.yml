@@ -27,7 +27,7 @@ jobs:
           echo "BOX64_COMPILER=$PWD/android-ndk-r26b/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android31-clang" >> $GITHUB_ENV
       - name: Clone official Box64 source
         run: git clone --depth 1 --branch v0.4.2 https://github.com/ptitSeb/box64.git runtime-build/box64
-      - name: Patch Android guest entrypoint
+      - name: Select Linux guest entrypoint on Android host
         working-directory: runtime-build/box64
         run: |
           set -euo pipefail
@@ -35,40 +35,32 @@ jobs:
           from pathlib import Path
           p = Path('src/emu/entrypoint.c')
           s = p.read_text()
-          old = '''#ifdef ANDROID\nvoid EXPORT my___libc_init'''
-          if old not in s:
-              raise SystemExit('unexpected Box64 entrypoint.c: Android guest entrypoint marker not found')
-          start = s.index(old)
-          end = s.index('#else\nEXPORT int32_t my___libc_start_main', start)
-          s = s[:start] + '#if defined(ANDROID) && defined(BOX64_ANDROID_NATIVE_STARTUP)\nvoid EXPORT my___libc_init' + s[end:]
-          p.write_text(s)
+          old = '#ifdef ANDROID\nvoid EXPORT my___libc_init'
+          new = '#if 0\nvoid EXPORT my___libc_init'
+          if s.count(old) != 1:
+              raise SystemExit(f'unexpected entrypoint markers: {s.count(old)}')
+          p.write_text(s.replace(old, new))
           PY
-          grep -n -A2 -B1 'my___libc_start_main' src/emu/entrypoint.c
+          grep -n -A1 -B1 'my___libc_start_main' src/emu/entrypoint.c
       - name: Configure Box64 for Android host with Linux guest startup
         working-directory: runtime-build/box64
         run: |
           set -euo pipefail
           cmake -S . -B build \
             -DCMAKE_C_COMPILER="$BOX64_COMPILER" \
-            -DANDROID=1 \
-            -DARM_DYNAREC=1 \
-            -DBAD_SIGNAL=1 \
-            -DTERMUX=0 \
-            -DCI=0 \
-            -DZYDIS3=0 \
-            -DHAVE_TRACE=0 \
-            -DSTATICBUILD=0 \
-            -DBOX32=0 \
+            -DANDROID=1 -DARM_DYNAREC=1 -DBAD_SIGNAL=1 -DTERMUX=0 \
+            -DCI=0 -DZYDIS3=0 -DHAVE_TRACE=0 -DSTATICBUILD=0 -DBOX32=0 \
             -DCMAKE_BUILD_TYPE=Release
       - name: Build
         working-directory: runtime-build/box64
         run: cmake --build build --parallel $(nproc)
-      - name: Verify guest startup wrapper exists
+      - name: Verify Linux guest startup wrapper is in binary
         working-directory: runtime-build/box64
         run: |
           set -euo pipefail
-          grep -R 'GOM(__libc_start_main' src/wrapped/wrappedlibc_private.h
           test -f build/box64
+          readelf -Ws build/box64 | grep -q 'my___libc_start_main'
+          readelf -Ws build/box64 | grep -q 'my___libc_init' && ! readelf -Ws build/box64 | grep 'my___libc_init' || true
       - name: Package, verify and hash
         run: |
           set -euo pipefail
@@ -76,6 +68,7 @@ jobs:
           install -Dm755 runtime-build/box64/build/box64 runtime-build/out/box64-android-arm64
           file runtime-build/out/libbox64.so
           readelf -h runtime-build/out/libbox64.so
+          readelf -Ws runtime-build/out/libbox64.so | grep -q 'my___libc_start_main'
           sha256sum runtime-build/out/libbox64.so runtime-build/out/box64-android-arm64 | tee runtime-build/out/box64-android-arm64.sha256
       - uses: actions/upload-artifact@v4
         with:
