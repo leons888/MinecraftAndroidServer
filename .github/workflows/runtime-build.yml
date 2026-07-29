@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install build tools
         run: sudo apt-get update && sudo apt-get install -y git cmake make python3 patchelf binutils file
-      - name: Fetch Android NDK r26b (the NDK upstream Box64 CI uses)
+      - name: Fetch Android NDK r26b
         run: |
           set -euo pipefail
           wget -q https://dl.google.com/android/repository/android-ndk-r26b-linux.zip
@@ -27,7 +27,24 @@ jobs:
           echo "BOX64_COMPILER=$PWD/android-ndk-r26b/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android31-clang" >> $GITHUB_ENV
       - name: Clone official Box64 source
         run: git clone --depth 1 --branch v0.4.2 https://github.com/ptitSeb/box64.git runtime-build/box64
-      - name: Configure Android ARM64 build (mirrors upstream ANDROID target)
+      - name: Patch Android guest entrypoint
+        working-directory: runtime-build/box64
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/emu/entrypoint.c')
+          s = p.read_text()
+          old = '''#ifdef ANDROID\nvoid EXPORT my___libc_init'''
+          if old not in s:
+              raise SystemExit('unexpected Box64 entrypoint.c: Android guest entrypoint marker not found')
+          start = s.index(old)
+          end = s.index('#else\nEXPORT int32_t my___libc_start_main', start)
+          s = s[:start] + '#if defined(ANDROID) && defined(BOX64_ANDROID_NATIVE_STARTUP)\nvoid EXPORT my___libc_init' + s[end:]
+          p.write_text(s)
+          PY
+          grep -n -A2 -B1 'my___libc_start_main' src/emu/entrypoint.c
+      - name: Configure Box64 for Android host with Linux guest startup
         working-directory: runtime-build/box64
         run: |
           set -euo pipefail
@@ -46,17 +63,19 @@ jobs:
       - name: Build
         working-directory: runtime-build/box64
         run: cmake --build build --parallel $(nproc)
+      - name: Verify guest startup wrapper exists
+        working-directory: runtime-build/box64
+        run: |
+          set -euo pipefail
+          grep -R 'GOM(__libc_start_main' src/wrapped/wrappedlibc_private.h
+          test -f build/box64
       - name: Package, verify and hash
         run: |
           set -euo pipefail
-          test -f runtime-build/box64/build/box64
-          # libbox64.so is the APK-shippable name: only lib*.so files are extracted
-          # into nativeLibraryDir, and that is the only app dir Android lets us exec from.
           install -Dm755 runtime-build/box64/build/box64 runtime-build/out/libbox64.so
           install -Dm755 runtime-build/box64/build/box64 runtime-build/out/box64-android-arm64
           file runtime-build/out/libbox64.so
           readelf -h runtime-build/out/libbox64.so
-          readelf -d runtime-build/out/libbox64.so
           sha256sum runtime-build/out/libbox64.so runtime-build/out/box64-android-arm64 | tee runtime-build/out/box64-android-arm64.sha256
       - uses: actions/upload-artifact@v4
         with:
