@@ -19,10 +19,10 @@ final class RuntimeInstaller {
   List<File> files=new ArrayList<>();collect(x86lib,files);Map<String,File> byName=new HashMap<>();
   for(File f:files){String n=f.getName();if(n.contains(".so")){byName.putIfAbsent(n,f);File out=new File(normalized,n);if(!out.exists())copy(f,out);}}
   for(String required:REQUIRED){if(new File(normalized,required).isFile())continue;File candidate=findVersioned(required,byName);if(candidate!=null)copy(candidate,new File(normalized,required));}
-  events.message("info","Нормализовано guest-библиотек: "+normalized.listFiles().length);
+  File[] done=normalized.listFiles();events.message("info","Нормализовано guest-библиотек: "+(done==null?0:done.length));
  }
- private File findVersioned(String name,Map<String,File> byName){String stem=name.substring(0,name.indexOf(".so"));for(Map.Entry<String,File> e:byName.entrySet()){String n=e.getKey();if(n.startsWith(stem+"-")&&n.contains(".so"))return e.getValue();}return null;}
- private boolean valid(RuntimeManifest.Artifact a){if("executable".equals(a.kind)){File f=new File(bin,a.id);return f.isFile()&&f.length()>0&&(f.canExecute()||f.setExecutable(true,false));}if("tar.gz".equals(a.kind)||"tar.xz".equals(a.kind)||"zip".equals(a.kind)){for(String n:REQUIRED)if(!new File(normalized,n).isFile())return false;return true;}return false;}
+ private File findVersioned(String name,Map<String,File> byName){String stem=name.substring(0,name.indexOf(".so"));for(Map.Entry<String,File> e:byName.entrySet()){String n=e.getKey();if(n.startsWith(stem+"-")||n.startsWith(stem+".so."))return e.getValue();}return null;}
+ private boolean valid(RuntimeManifest.Artifact a){if("executable".equals(a.kind)){File f=new File(bin,a.id);return f.isFile()&&f.length()>0&&(f.canExecute()||f.setExecutable(true,false));}if("tar.gz".equals(a.kind)||"tar.xz".equals(a.kind)||"zip".equals(a.kind)){for(String n:REQUIRED)if(!new File(normalized,n).isFile()||new File(normalized,n).length()==0)return false;return true;}return false;}
  private void collect(File d,List<File> out){File[] fs=d.listFiles();if(fs==null)return;for(File f:fs){if(f.isFile())out.add(f);else if(f.isDirectory())collect(f,out);}}
  private void delete(File f){if(f.isDirectory()){File[] fs=f.listFiles();if(fs!=null)for(File x:fs)delete(x);}f.delete();}
  private void copy(File from,File to)throws IOException{to.getParentFile().mkdirs();try(InputStream i=new FileInputStream(from);OutputStream o=new FileOutputStream(to)){byte[]b=new byte[65536];int n;while((n=i.read(b))>0)o.write(b,0,n);}}
