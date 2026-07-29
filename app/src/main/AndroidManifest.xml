@@ -3,9 +3,9 @@
  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
  <uses-permission android:name="android.permission.WAKE_LOCK" />
- <!-- extractNativeLibs must stay true: libbox64.so has to exist as a real file in
-      nativeLibraryDir so it can be exec()'d. Compressed-in-APK libs cannot be. -->
- <application android:theme="@style/AppTheme" android:label="BDS Control" android:usesCleartextTraffic="true" android:allowBackup="false" android:supportsRtl="true" android:extractNativeLibs="true">
+ <!-- Keep native libraries uncompressed in the APK. Box64 is executed directly
+      from nativeLibraryDir and cannot be run from a compressed ZIP entry. -->
+ <application android:theme="@style/AppTheme" android:label="BDS Control" android:usesCleartextTraffic="true" android:allowBackup="false" android:supportsRtl="true" android:extractNativeLibs="false">
   <activity android:name=".MainActivity" android:screenOrientation="portrait" android:exported="true">
    <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
   </activity>

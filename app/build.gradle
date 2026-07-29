@@ -10,17 +10,17 @@ android {
         applicationId 'com.bdscontrol.app'
         minSdk 26
         targetSdk 35
-        versionCode 3
-        versionName '0.2.1'
+        versionCode 4
+        versionName '0.2.2'
         ndk { abiFilters 'arm64-v8a' }
     }
 
     packagingOptions {
-        // libbox64.so is exec()'d from nativeLibraryDir, so it must exist there as a
-        // real uncompressed file. AndroidManifest sets extractNativeLibs=true, but the
-        // Gradle DSL value wins over the manifest, so it has to be pinned here too.
+        // Box64 is executed from nativeLibraryDir. Legacy JNI packaging compresses
+        // native libraries, so it must stay disabled. With minSdk 26 this produces
+        // an uncompressed lib/arm64-v8a/libbox64.so in the APK.
         jniLibs {
-            useLegacyPackaging = true
+            useLegacyPackaging = false
         }
         doNotStrip '*/arm64-v8a/*.so'
     }
@@ -40,8 +40,6 @@ android {
     }
 }
 
-// The APK build owns the runtime bootstrap. ACS Lite only needs to open this
-// project and run assembleDebug: no libbox64.so copy step is required.
 def box64Version = 'runtime-v1'
 def box64BaseUrl = "https://github.com/leons888/MinecraftAndroidServer/releases/download/${box64Version}"
 def box64AssetUrl = "${box64BaseUrl}/libbox64.so"
