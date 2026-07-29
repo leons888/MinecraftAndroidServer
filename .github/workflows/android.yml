@@ -42,10 +42,39 @@ jobs:
           "$RUNNER_TEMP/gradle/gradle-8.2/bin/gradle" --version
 
       - name: Assemble debug APK
-        run: gradle :app:assembleDebug --no-daemon --stacktrace --console=plain --warning-mode all
+        run: |
+          set -o pipefail
+          gradle :app:assembleDebug --no-daemon --stacktrace --console=plain 2>&1 | tee /tmp/gradle-build.log
+
+      - name: Surface the real compilation errors
+        if: failure()
+        run: |
+          {
+            echo '## Build failed'
+            echo ''
+            echo '```'
+            grep -nE 'error:|FAILURE:|What went wrong|Execution failed' /tmp/gradle-build.log | head -n 80 || echo 'No javac/Gradle error lines matched; see the uploaded log.'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-build-log-${{ github.run_number }}
+          path: /tmp/gradle-build.log
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Verify APK output
         run: test -s app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Verify libbox64.so is packaged uncompressed
+        run: |
+          set -euo pipefail
+          unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -q 'lib/arm64-v8a/libbox64.so'
+          grep -q 'android:extractNativeLibs="true"' app/src/main/AndroidManifest.xml
+          echo 'libbox64.so is present in the APK under lib/arm64-v8a/'
 
       - name: Calculate APK SHA-256
         run: sha256sum app/build/outputs/apk/debug/app-debug.apk | tee app/build/outputs/apk/debug/app-debug.apk.sha256
