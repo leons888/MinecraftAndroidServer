@@ -10,17 +10,16 @@ android {
         applicationId 'com.bdscontrol.app'
         minSdk 26
         targetSdk 35
-        versionCode 4
-        versionName '0.2.2'
+        versionCode 5
+        versionName '0.2.3'
         ndk { abiFilters 'arm64-v8a' }
     }
 
     packagingOptions {
-        // Box64 is executed from nativeLibraryDir. Legacy JNI packaging compresses
-        // native libraries, so it must stay disabled. With minSdk 26 this produces
-        // an uncompressed lib/arm64-v8a/libbox64.so in the APK.
+        // Android must extract libbox64.so into nativeLibraryDir as a real
+        // executable file. This is required for exec() on Android 14.
         jniLibs {
-            useLegacyPackaging = false
+            useLegacyPackaging = true
         }
         doNotStrip '*/arm64-v8a/*.so'
     }
@@ -66,12 +65,12 @@ tasks.register('downloadBox64') {
                 checksumFile.withOutputStream { output -> output << input }
             }
         } catch (Exception e) {
-            throw new GradleException("Box64 runtime release ${box64Version} is unavailable. Open ${box64ChecksumsUrl} in a browser and publish the runtime release before building.", e)
+            throw new GradleException("Box64 runtime release ${box64Version} is unavailable: ${e.message}", e)
         }
         String line = checksumFile.readLines('UTF-8').find { it.trim().endsWith('libbox64.so') }
         String expected = line == null ? null : line.trim().split('\\s+')[0]
         if (expected == null || !(expected ==~ /[0-9a-fA-F]{64}/)) {
-            throw new GradleException("Box64 release checksum is missing from ${box64ChecksumsUrl}. The APK will not package an unverified binary.")
+            throw new GradleException("Box64 release checksum is missing from ${box64ChecksumsUrl}")
         }
         File tmp = file("${box64Out}.part")
         try {
@@ -80,10 +79,10 @@ tasks.register('downloadBox64') {
             }
             String actual = box64Sha256(tmp)
             if (!actual.equalsIgnoreCase(expected)) {
-                throw new GradleException("Box64 SHA-256 mismatch. Expected ${expected}, got ${actual}. Delete ${tmp} and retry.")
+                throw new GradleException("Box64 SHA-256 mismatch. Expected ${expected}, got ${actual}")
             }
             if (box64Out.exists()) box64Out.delete()
-            if (!tmp.renameTo(box64Out)) throw new GradleException("Could not install verified Box64 at ${box64Out}")
+            if (!tmp.renameTo(box64Out)) throw new GradleException("Could not install verified Box64")
             box64Out.setExecutable(true, false)
             logger.lifecycle("Verified Box64 ${box64Version}: ${actual}")
         } catch (GradleException e) {
@@ -91,7 +90,7 @@ tasks.register('downloadBox64') {
             throw e
         } catch (Exception e) {
             tmp.delete()
-            throw new GradleException("Could not download Box64 from ${box64AssetUrl}. Check internet access and the runtime release.", e)
+            throw new GradleException("Could not download Box64 from ${box64AssetUrl}", e)
         }
     }
 }
