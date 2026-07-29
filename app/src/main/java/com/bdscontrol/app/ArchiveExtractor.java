@@ -13,15 +13,7 @@ final class ArchiveExtractor {
   for(String[] l:hardlinks){File f=safe(dest,l[0]),target=findTarget(dest,safeLinkTarget(dest,f,l[1]));f.getParentFile().mkdirs();f.delete();try{android.system.Os.link(target.getAbsolutePath(),f.getAbsolutePath());}catch(Throwable ignored){copy(target,f);}if(!f.isFile())throw new IOException("Не удалось воссоздать hardlink "+l[0]+" -> "+l[1]);}
   for(String[] l:symlinks){File f=safe(dest,l[0]);File target=safeLinkTarget(dest,f,l[1]);if(!target.isFile())target=findTarget(dest,target);f.getParentFile().mkdirs();f.delete();if(!target.isFile())throw new IOException("Не найден target guest-библиотеки "+l[0]+" -> "+l[1]);try{Path parent=f.getParentFile().toPath().toAbsolutePath().normalize();Path targetPath=target.toPath().toAbsolutePath().normalize();android.system.Os.symlink(parent.relativize(targetPath).toString(),f.getAbsolutePath());}catch(Throwable ignored){copy(target,f);}if(!f.isFile())throw new IOException("Сломанная guest-ссылка "+l[0]+" -> "+l[1]);}
  }
- private static File safeLinkTarget(File dest,File link,String name)throws IOException{
-  File target;
-  // The upstream bundle stores links such as ./usr/lib/.../libzstd.so.1.
-  // Those are rooted at the archive root, not relative to the link's directory.
-  if(name.startsWith("/"))target=new File(dest,name.substring(1));
-  else if(name.startsWith("./"))target=new File(dest,name.substring(2));
-  else target=new File(link.getParentFile(),name);
-  File normalized=target.getCanonicalFile();if(!normalized.toPath().startsWith(dest.getCanonicalFile().toPath()))throw new SecurityException("unsafe link target");return normalized;
- }
+ private static File safeLinkTarget(File dest,File link,String name)throws IOException{File target;if(name.startsWith("/"))target=new File(dest,name.substring(1));else if(name.startsWith("./"))target=new File(dest,name.substring(2));else target=new File(link.getParentFile(),name);File normalized=target.getCanonicalFile();if(!normalized.toPath().startsWith(dest.getCanonicalFile().toPath()))throw new SecurityException("unsafe link target");return normalized;}
  private static File findTarget(File dest,File wanted){String name=wanted.getName();ArrayDeque<File> q=new ArrayDeque<>();q.add(dest);while(!q.isEmpty()){File d=q.remove();File[] fs=d.listFiles();if(fs==null)continue;for(File f:fs){if(f.isFile()&&f.getName().equals(name))return f;if(f.isDirectory())q.add(f);}}return wanted;}
- private static void copy(File from,File to)throws IOException{if(!from.isFile())return;try(InputStream i=new FileInputStream(from);OutputStream o=new FileOutputStream(to)){byte[]b=new byte[65536];int n;while((n=i.read(b))>0)o.write(b,n);}}
+ private static void copy(File from,File to)throws IOException{if(!from.isFile())return;try(InputStream i=new FileInputStream(from);OutputStream o=new FileOutputStream(to)){byte[]b=new byte[65536];int n;while((n=i.read(b))>0)o.write(b,0,n);}}
 }
